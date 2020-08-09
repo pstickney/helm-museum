@@ -1,0 +1,9 @@
+name: "museum"
+version: "1.0.0"
+usage: "test usage"
+description: "test description"
+useTunnel: true
+command: "$HELM_PLUGIN_DIR/museum.sh"
+hooks:
+  install: "$HELM_PLUGIN_DIR/install-binary.sh"
+  update: "$HELM_PLUGIN_DIR/install-binary.sh"
