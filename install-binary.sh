@@ -14,3 +14,4 @@ CHARTMUSEUM_LINUX_SHA="53402edf5ac9f736cb6da8f270f6bbf356dcbbe5592d8a09ee6f91a2d
 #fi
 
 echo "install-binary.sh '$*'"
+env
