@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
-echo "museum.sh '$*'"
 env
+echo "museum.sh '$*'"
