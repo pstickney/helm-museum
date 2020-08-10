@@ -51,4 +51,5 @@ if [ -f "$HELM_PLUGIN_DIR/chartmuseum" ]; then
     echo "Invalid computed SHA"
     exit 1
   fi
+  chmod +x "$HELM_PLUGIN_DIR/chartmuseum"
 fi
