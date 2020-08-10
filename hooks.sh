@@ -4,6 +4,9 @@ set -euo pipefail
 
 if [ "$HELM_DEBUG" == true ]; then
   set -x
+
+  env | grep "HELM_"
+  echo "hooks.sh '$*'"
 fi
 
 CHARTMUSEUM_VERSION_URL="https://raw.githubusercontent.com/pstickney/helm-museum/master/CHARTMUSEUM_VERSION"
@@ -27,11 +30,11 @@ get_sha () {
 }
 
 download () {
-  echo "Downloading..."
+  echo "$1"
   if command -v curl > /dev/null; then
-    curl --progress-bar -SL "$1" > "$2"
+    curl --progress-bar -SL "$2" > "$3"
   elif command -v wget > /dev/null; then
-    wget -q --show-progress --progress=bar:force:noscroll "$1" -O "$2"
+    wget -q --show-progress --progress=bar:force:noscroll "$2" -O "$3"
   else
     echo "No download utility found. Get curl or wget"
     exit 1
@@ -45,16 +48,14 @@ cleanup () {
   fi
 }
 
-env | grep "HELM_"
-echo "hooks.sh '$*'"
-
 # Get the chartmuseum version
 TMP_VERSION="$(mktemp)"
 CHARTMUSEUM_VERSION="0"
 trap 'cleanup $TMP_VERSION' EXIT
 if [ -f "$TMP_VERSION" ]; then
-  download "$CHARTMUSEUM_VERSION_URL" "$TMP_VERSION"
+  download "Getting version information..." "$CHARTMUSEUM_VERSION_URL" "$TMP_VERSION"
   CHARTMUSEUM_VERSION="$(cat "$TMP_VERSION")"
+  echo "Proceeding with v$CHARTMUSEUM_VERSION"
 else
   echo "Could not get version information"
   exit 1
@@ -69,32 +70,38 @@ if [ -f "$HELM_PLUGIN_DIR/chartmuseum" ]; then
 fi
 
 # Download chartmuseum binaries
+echo -n "Is chartmuseum v$CHARTMUSEUM_VERSION installed..."
 if [ "$INSTALLED" != "true" ] || [ "$VERSION" != "$CHARTMUSEUM_VERSION" ]; then
+  echo "NO"
   if [ "$(uname)" == "Darwin" ]; then
-    download "$(get_url "$CHARTMUSEUM_VERSION" "darwin")" "$HELM_PLUGIN_DIR/chartmuseum"
+    download "Downloading chartmuseum v$CHARTMUSEUM_VERSION..." "$(get_url "$CHARTMUSEUM_VERSION" "darwin")" "$HELM_PLUGIN_DIR/chartmuseum"
   elif [ "$(uname)" == "Linux" ]; then
-    download "$(get_url "$CHARTMUSEUM_VERSION" "linux")" "$HELM_PLUGIN_DIR/chartmuseum"
+    download "Downloading chartmuseum v$CHARTMUSEUM_VERSION..." "$(get_url "$CHARTMUSEUM_VERSION" "linux")" "$HELM_PLUGIN_DIR/chartmuseum"
   else
     echo "No package available"
     exit 1
   fi
+else
+  echo "YES"
 fi
 
 # Compute chartmuseum SHA256
 if [ -f "$HELM_PLUGIN_DIR/chartmuseum" ]; then
+  echo -n "Calculating chartmuseum v$CHARTMUSEUM_VERSION SHA256..."
   if [ "$(uname)" == "Darwin" ]; then
     if [ "$(get_sha "$HELM_PLUGIN_DIR/chartmuseum")" != "${CHARTMUSEUM_DARWIN_SHA}" ]; then
-      echo "Invalid computed SHA"
+      echo "Invalid"
       exit 1
     fi
   elif [ "$(uname)" == "Linux" ]; then
     if [ "$(get_sha "$HELM_PLUGIN_DIR/chartmuseum")" != "${CHARTMUSEUM_LINUX_SHA}" ]; then
-      echo "Invalid computed SHA"
+      echo "Invalid"
       exit 1
     fi
   else
-    echo "Cannot compute SHA"
+    echo "Failed"
     exit 1
   fi
+  echo "OK"
   chmod +x "$HELM_PLUGIN_DIR/chartmuseum"
 fi
