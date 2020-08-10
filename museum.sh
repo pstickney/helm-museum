@@ -2,5 +2,5 @@
 
 set -euox pipefail
 
-env
+env | grep "HELM_"
 echo "museum.sh '$*'"
