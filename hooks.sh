@@ -23,7 +23,7 @@ get_sha () {
 }
 
 env | grep "HELM_"
-echo "install-binary.sh '$*'"
+echo "hooks.sh '$*'"
 
 INSTALLED="false"
 VERSION="0"
@@ -32,23 +32,32 @@ if [ -f "$HELM_PLUGIN_DIR/chartmuseum" ]; then
   VERSION="$("$HELM_PLUGIN_DIR/chartmuseum" --version | cut -d ' ' -f 3)"
 fi
 
+# Download chartmuseum binaries
 if [ "$INSTALLED" != "true" ] || [ "$VERSION" != "$CHARTMUSEUM_VERSION" ]; then
   if [ "$(uname)" == "Darwin" ]; then
-    curl --progress-bar -SL "$(get_url "$CHARTMUSEUM_VERSION" "darwin")" > "$HELM_PLUGIN_DIR/chartmuseum"
+    curl --progress-bar -sL "$(get_url "$CHARTMUSEUM_VERSION" "darwin")" > "$HELM_PLUGIN_DIR/chartmuseum"
   elif [ "$(uname)" == "Linux" ]; then
-    curl --progress-bar -SL "$(get_url "$CHARTMUSEUM_VERSION" "linux")" > "$HELM_PLUGIN_DIR/chartmuseum"
+    curl --progress-bar -sL "$(get_url "$CHARTMUSEUM_VERSION" "linux")" > "$HELM_PLUGIN_DIR/chartmuseum"
   else
     echo "No package available"
     exit 1
   fi
 fi
 
+# Compute chartmuseum SHA256
 if [ -f "$HELM_PLUGIN_DIR/chartmuseum" ]; then
-  if [ "$(uname)" == "Darwin" ] && [ "$(get_sha "$HELM_PLUGIN_DIR/chartmuseum")" != "${CHARTMUSEUM_DARWIN_SHA}" ]; then
-    echo "Invalid computed SHA"
-    exit 1
-  elif [ "$(uname)" == "Linux" ] && [ "$(get_sha "$HELM_PLUGIN_DIR/chartmuseum")" != "${CHARTMUSEUM_LINUX_SHA}" ]; then
-    echo "Invalid computed SHA"
+  if [ "$(uname)" == "Darwin" ]; then
+    if [ "$(get_sha "$HELM_PLUGIN_DIR/chartmuseum")" != "${CHARTMUSEUM_DARWIN_SHA}" ]; then
+      echo "Invalid computed SHA"
+      exit 1
+    fi
+  elif [ "$(uname)" == "Linux" ]; then
+    if [ "$(get_sha "$HELM_PLUGIN_DIR/chartmuseum")" != "${CHARTMUSEUM_LINUX_SHA}" ]; then
+      echo "Invalid computed SHA"
+      exit 1
+    fi
+  else
+    echo "Cannot compute SHA"
     exit 1
   fi
   chmod +x "$HELM_PLUGIN_DIR/chartmuseum"
