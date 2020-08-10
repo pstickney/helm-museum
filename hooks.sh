@@ -35,9 +35,9 @@ fi
 # Download chartmuseum binaries
 if [ "$INSTALLED" != "true" ] || [ "$VERSION" != "$CHARTMUSEUM_VERSION" ]; then
   if [ "$(uname)" == "Darwin" ]; then
-    curl --progress-bar -sL "$(get_url "$CHARTMUSEUM_VERSION" "darwin")" > "$HELM_PLUGIN_DIR/chartmuseum"
+    curl --progress-bar -SL "$(get_url "$CHARTMUSEUM_VERSION" "darwin")" > "$HELM_PLUGIN_DIR/chartmuseum"
   elif [ "$(uname)" == "Linux" ]; then
-    curl --progress-bar -sL "$(get_url "$CHARTMUSEUM_VERSION" "linux")" > "$HELM_PLUGIN_DIR/chartmuseum"
+    curl --progress-bar -SL "$(get_url "$CHARTMUSEUM_VERSION" "linux")" > "$HELM_PLUGIN_DIR/chartmuseum"
   else
     echo "No package available"
     exit 1
