@@ -9,7 +9,9 @@ if [ "$HELM_DEBUG" == true ]; then
   echo "hooks.sh '$*'"
 fi
 
-CHARTMUSEUM_VERSION_URL="https://raw.githubusercontent.com/pstickney/helm-museum/master/CHARTMUSEUM_VERSION"
+SCRIPT="$0"
+HOOK="$1"
+HELM_MUSEUM_GIT_URL="https://github.com/pstickney/helm-museum.git"
 CHARTMUSEUM_DARWIN_SHA="33363f7471968a983d3f52562398fb120cc9022595ce5d090a5870d34ec45088"
 CHARTMUSEUM_LINUX_SHA="53402edf5ac9f736cb6da8f270f6bbf356dcbbe5592d8a09ee6f91a2dc30e4f6"
 
@@ -18,90 +20,144 @@ get_url () {
 }
 
 get_sha () {
-  local sha
+  local sha=""
+  local file="$1"
   if command -v sha256sum > /dev/null; then
-    sha=$(sha256sum "$1")
+    sha=$(sha256sum "$file")
   elif command -v shasum > /dev/null; then
-    sha=$(shasum -a 256 "$1")
+    sha=$(shasum -a 256 "$file")
   else
-    sha="error"
+    echo "SHA256 utility not found."
+    exit 1
   fi
-  echo $sha | cut -d ' ' -f 1
+  echo "$sha" | cut -d ' ' -f 1
 }
 
 download () {
-  echo "$1"
+  local url="$1"
+  local file="$2"
   if command -v curl > /dev/null; then
-    curl --progress-bar -SL "$2" > "$3"
+    curl --progress-bar -SL "$url" > "$file"
   elif command -v wget > /dev/null; then
-    wget -q --show-progress --progress=bar:force:noscroll "$2" -O "$3"
+    wget -q --show-progress --progress=bar:force:noscroll "$url" -O "$file"
   else
-    echo "No download utility found. Get curl or wget"
+    echo "Download utility not found. Get curl or wget"
     exit 1
   fi
 }
 
-cleanup () {
-  echo "Cleaning..."
-  if [ -f "$1" ]; then
-    rm -f "$1"
+git_latest_tag () {
+  if command -v git > /dev/null; then
+    git describe --tags "$(git rev-list --tags --max-count=1)"
+  else
+    echo "Git utility not found."
+    exit 1
   fi
 }
 
-# Get the chartmuseum version
-TMP_VERSION="$(mktemp)"
-CHARTMUSEUM_VERSION="0"
-trap 'cleanup $TMP_VERSION' EXIT
-if [ -f "$TMP_VERSION" ]; then
-  download "Getting version information..." "$CHARTMUSEUM_VERSION_URL" "$TMP_VERSION"
-  CHARTMUSEUM_VERSION="$(cat "$TMP_VERSION")"
-  echo "Proceeding with v$CHARTMUSEUM_VERSION"
-else
-  echo "Could not get version information"
-  exit 1
-fi
-
-# Check to see if chartmuseum is already installed
-INSTALLED="false"
-VERSION="0"
-if [ -f "$HELM_PLUGIN_DIR/chartmuseum" ]; then
-  INSTALLED="true"
-  VERSION="$("$HELM_PLUGIN_DIR/chartmuseum" --version | cut -d ' ' -f 3)"
-fi
-
-# Download chartmuseum binaries
-echo -n "Is chartmuseum v$CHARTMUSEUM_VERSION installed..."
-if [ "$INSTALLED" != "true" ] || [ "$VERSION" != "$CHARTMUSEUM_VERSION" ]; then
-  echo "NO"
-  if [ "$(uname)" == "Darwin" ]; then
-    download "Downloading chartmuseum v$CHARTMUSEUM_VERSION..." "$(get_url "$CHARTMUSEUM_VERSION" "darwin")" "$HELM_PLUGIN_DIR/chartmuseum"
-  elif [ "$(uname)" == "Linux" ]; then
-    download "Downloading chartmuseum v$CHARTMUSEUM_VERSION..." "$(get_url "$CHARTMUSEUM_VERSION" "linux")" "$HELM_PLUGIN_DIR/chartmuseum"
+get_plugin_version () {
+  if [ -f "plugin.yaml" ]; then
+    grep "version" "plugin.yaml" | cut -d '"' -f 2
   else
-    echo "No package available"
+    echo "Plugin version unavailable."
     exit 1
   fi
-else
-  echo "YES"
-fi
+}
 
-# Compute chartmuseum SHA256
-if [ -f "$HELM_PLUGIN_DIR/chartmuseum" ]; then
-  echo -n "Calculating chartmuseum v$CHARTMUSEUM_VERSION SHA256..."
+get_chartmuseum_binary_version () {
+  if [ -f "chartmuseum" ]; then
+    chartmuseum --version | cut -d ' ' -f 3
+  else
+    echo "Chartmuseum version unavailable."
+    exit 1
+  fi
+}
+
+get_chartmuseum_target_version () {
+  if [ -f "CHARTMUSEUM_VERSION" ]; then
+    cat "CHARTMUSEUM_VERSION"
+  else
+    echo "Target version unavailable."
+    exit 1
+  fi
+}
+
+plugin_update_available () {
+  local plugin_version="$(get_plugin_version)"
+  local latest_version="$(git_latest_tag)"
+  [ "$plugin_version" != "$latest_version" ]
+}
+
+plugin_update () {
+  if command -v git > /dev/null; then
+    local tmpDir="$(mktemp -d)"
+    local latestTag="$(git_latest_tag)"
+    pushd "$tmpDir"
+    git clone "$HELM_MUSEUM_GIT_URL" .
+    git checkout -b latest "$latestTag"
+    cp -r "./*" "$HELM_PLUGIN_DIR/"
+    popd
+    rm -rf "$tmpDir"
+  else
+    echo "Git utility not found."
+    exit 1
+  fi
+}
+
+chartmuseum_update_available () {
+  local installed="false"
+  local chartmuseum_version="$(get_chartmuseum_binary_version)"
+  local target_version="$(get_chartmuseum_target_version)"
+  if [ -f "chartmuseum" ]; then
+    installed="true"
+  fi
+  [ "$installed" != "true" ] || [ "$chartmuseum_version" != "$target_version" ]
+}
+
+chartmuseum_update () {
+  local version="$(get_chartmuseum_target_version)"
   if [ "$(uname)" == "Darwin" ]; then
-    if [ "$(get_sha "$HELM_PLUGIN_DIR/chartmuseum")" != "${CHARTMUSEUM_DARWIN_SHA}" ]; then
-      echo "Invalid"
-      exit 1
-    fi
+    download "$(get_url "$version" "darwin")" "chartmuseum"
   elif [ "$(uname)" == "Linux" ]; then
-    if [ "$(get_sha "$HELM_PLUGIN_DIR/chartmuseum")" != "${CHARTMUSEUM_LINUX_SHA}" ]; then
-      echo "Invalid"
+    download "$(get_url "$version" "linux")" "chartmuseum"
+  else
+    echo "Platform not supported."
+    exit 1
+  fi
+}
+
+validate () {
+  if [ -f "chartmuseum" ]; then
+    if [ "$(uname)" == "Darwin" ]; then
+      [ "$(get_sha "chartmuseum")" != "${CHARTMUSEUM_DARWIN_SHA}" ]
+    elif [ "$(uname)" == "Linux" ]; then
+      [ "$(get_sha "chartmuseum")" != "${CHARTMUSEUM_LINUX_SHA}" ]
+    else
+      echo "Platform not supported."
       exit 1
     fi
   else
-    echo "Failed"
-    exit 1
+    return 1
   fi
-  echo "OK"
-  chmod +x "$HELM_PLUGIN_DIR/chartmuseum"
+}
+
+set_execute () {
+  chmod +x "chartmuseum"
+}
+
+main () {
+  if chartmuseum_update_available; then
+    chartmuseum_update
+    if validate; then
+      set_execute
+    fi
+  fi
+}
+
+if plugin_update_available; then
+  plugin_update
+  $SCRIPT "$HOOK"
+  exit 0
 fi
+
+main

@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
-set -euox pipefail
+set -euo pipefail
 
-env | grep "HELM_"
-echo "museum.sh '$*'"
+if [ "$HELM_DEBUG" == true ]; then
+  set -x
+
+  env | grep "HELM_"
+  echo "museum.sh '$*'"
+fi
