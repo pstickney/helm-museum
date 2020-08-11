@@ -88,7 +88,7 @@ get_chartmuseum_target_version () {
 plugin_update_available () {
   local plugin_version="$(get_plugin_version)"
   local latest_version="$(git_latest_tag)"
-  [ "$plugin_version" != "$latest_version" ]
+  [ "$HOOK" == "update" ] && [ "$plugin_version" != "$latest_version" ]
 }
 
 plugin_update () {
@@ -148,19 +148,15 @@ set_execute () {
   chmod +x "$HELM_PLUGIN_DIR/chartmuseum"
 }
 
-main () {
-  if chartmuseum_update_available; then
-    chartmuseum_update
-    if validate; then
-      set_execute
-    fi
-  fi
-}
-
 if plugin_update_available; then
   plugin_update
   $SCRIPT "$HOOK"
   exit 0
 fi
 
-main
+if chartmuseum_update_available; then
+  chartmuseum_update
+  if validate; then
+    set_execute
+  fi
+fi
