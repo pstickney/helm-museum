@@ -6,5 +6,6 @@ if [ "$HELM_DEBUG" == true ]; then
   set -x
 
   env | grep "HELM_"
-  echo "museum.sh '$*'"
 fi
+
+echo "museum.sh '$*'"
