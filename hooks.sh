@@ -80,7 +80,7 @@ get_chartmuseum_target_version () {
   if [ -f "$HELM_PLUGIN_DIR/CHARTMUSEUM_VERSION" ]; then
     cat "$HELM_PLUGIN_DIR/CHARTMUSEUM_VERSION"
   else
-    echo "Target version unavailable."
+    echo "Chartmuseum target version unavailable."
     exit 1
   fi
 }
@@ -132,9 +132,9 @@ chartmuseum_update () {
 validate () {
   if [ -f "$HELM_PLUGIN_DIR/chartmuseum" ]; then
     if [ "$(uname)" == "Darwin" ]; then
-      [ "$(get_sha "$HELM_PLUGIN_DIR/chartmuseum")" != "${CHARTMUSEUM_DARWIN_SHA}" ]
+      [ "$(get_sha "$HELM_PLUGIN_DIR/chartmuseum")" == "${CHARTMUSEUM_DARWIN_SHA}" ]
     elif [ "$(uname)" == "Linux" ]; then
-      [ "$(get_sha "$HELM_PLUGIN_DIR/chartmuseum")" != "${CHARTMUSEUM_LINUX_SHA}" ]
+      [ "$(get_sha "$HELM_PLUGIN_DIR/chartmuseum")" == "${CHARTMUSEUM_LINUX_SHA}" ]
     else
       echo "Platform not supported."
       exit 1
