@@ -48,6 +48,7 @@ download () {
 
 git_latest_tag () {
   if command -v git > /dev/null; then
+    git fetch --tags
     git describe --tags "$(git rev-list --tags --max-count=1)"
   else
     echo "Git utility not found."
