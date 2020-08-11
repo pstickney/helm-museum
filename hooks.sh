@@ -95,7 +95,7 @@ plugin_update () {
     pushd "$tmpDir"
     git clone "$HELM_MUSEUM_GIT_URL" .
     git checkout -b latest "$latestTag"
-    cp -r "./*" "$HELM_PLUGIN_DIR/"
+    cp "*" "$HELM_PLUGIN_DIR/"
     popd
     rm -rf "$tmpDir"
   else
