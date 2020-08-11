@@ -48,8 +48,10 @@ download () {
 
 git_latest_tag () {
   if command -v git > /dev/null; then
+    pushd "$HELM_PLUGIN_DIR"
     git fetch --tags
     git describe --tags "$(git rev-list --tags --max-count=1)"
+    popd
   else
     echo "Git utility not found."
     exit 1
@@ -58,7 +60,7 @@ git_latest_tag () {
 
 get_plugin_version () {
   if [ -f "plugin.yaml" ]; then
-    grep "version" "plugin.yaml" | cut -d '"' -f 2
+    grep "version" "$HELM_PLUGIN_DIR/plugin.yaml" | cut -d '"' -f 2
   else
     echo "Plugin version unavailable."
     exit 1
@@ -66,8 +68,8 @@ get_plugin_version () {
 }
 
 get_chartmuseum_binary_version () {
-  if [ -f "chartmuseum" ]; then
-    chartmuseum --version | cut -d ' ' -f 3
+  if [ -f "$HELM_PLUGIN_DIR/chartmuseum" ]; then
+    "$HELM_PLUGIN_DIR/chartmuseum" --version | cut -d ' ' -f 3
   else
     echo "Chartmuseum version unavailable."
     exit 1
@@ -75,8 +77,8 @@ get_chartmuseum_binary_version () {
 }
 
 get_chartmuseum_target_version () {
-  if [ -f "CHARTMUSEUM_VERSION" ]; then
-    cat "CHARTMUSEUM_VERSION"
+  if [ -f "$HELM_PLUGIN_DIR/CHARTMUSEUM_VERSION" ]; then
+    cat "$HELM_PLUGIN_DIR/CHARTMUSEUM_VERSION"
   else
     echo "Target version unavailable."
     exit 1
@@ -109,7 +111,7 @@ chartmuseum_update_available () {
   local installed="false"
   local chartmuseum_version="$(get_chartmuseum_binary_version)"
   local target_version="$(get_chartmuseum_target_version)"
-  if [ -f "chartmuseum" ]; then
+  if [ -f "$HELM_PLUGIN_DIR/chartmuseum" ]; then
     installed="true"
   fi
   [ "$installed" != "true" ] || [ "$chartmuseum_version" != "$target_version" ]
@@ -118,9 +120,9 @@ chartmuseum_update_available () {
 chartmuseum_update () {
   local version="$(get_chartmuseum_target_version)"
   if [ "$(uname)" == "Darwin" ]; then
-    download "$(get_url "$version" "darwin")" "chartmuseum"
+    download "$(get_url "$version" "darwin")" "$HELM_PLUGIN_DIR/chartmuseum"
   elif [ "$(uname)" == "Linux" ]; then
-    download "$(get_url "$version" "linux")" "chartmuseum"
+    download "$(get_url "$version" "linux")" "$HELM_PLUGIN_DIR/chartmuseum"
   else
     echo "Platform not supported."
     exit 1
@@ -128,11 +130,11 @@ chartmuseum_update () {
 }
 
 validate () {
-  if [ -f "chartmuseum" ]; then
+  if [ -f "$HELM_PLUGIN_DIR/chartmuseum" ]; then
     if [ "$(uname)" == "Darwin" ]; then
-      [ "$(get_sha "chartmuseum")" != "${CHARTMUSEUM_DARWIN_SHA}" ]
+      [ "$(get_sha "$HELM_PLUGIN_DIR/chartmuseum")" != "${CHARTMUSEUM_DARWIN_SHA}" ]
     elif [ "$(uname)" == "Linux" ]; then
-      [ "$(get_sha "chartmuseum")" != "${CHARTMUSEUM_LINUX_SHA}" ]
+      [ "$(get_sha "$HELM_PLUGIN_DIR/chartmuseum")" != "${CHARTMUSEUM_LINUX_SHA}" ]
     else
       echo "Platform not supported."
       exit 1
@@ -143,7 +145,7 @@ validate () {
 }
 
 set_execute () {
-  chmod +x "chartmuseum"
+  chmod +x "$HELM_PLUGIN_DIR/chartmuseum"
 }
 
 main () {
