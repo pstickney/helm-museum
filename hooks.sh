@@ -48,10 +48,10 @@ download () {
 
 git_latest_tag () {
   if command -v git > /dev/null; then
-    pushd "$HELM_PLUGIN_DIR"
+    pushd "$HELM_PLUGIN_DIR" > /dev/null
     git fetch --tags
     git describe --tags "$(git rev-list --tags --max-count=1)"
-    popd
+    popd > /dev/null
   else
     echo "Git utility not found."
     exit 1
@@ -95,11 +95,11 @@ plugin_update () {
   if command -v git > /dev/null; then
     local tmpDir="$(mktemp -d)"
     local latestTag="$(git_latest_tag)"
-    pushd "$tmpDir"
+    pushd "$tmpDir" > /dev/null
     git clone "$HELM_MUSEUM_GIT_URL" .
     git checkout -b latest "$latestTag"
     cp ./* "$HELM_PLUGIN_DIR/"
-    popd
+    popd > /dev/null
     rm -rf "$tmpDir"
   else
     echo "Git utility not found."
