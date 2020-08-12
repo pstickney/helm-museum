@@ -140,7 +140,8 @@ validate () {
       exit 1
     fi
   else
-    return 1
+    echo "Chartmuseum utility not found."
+    exit 1
   fi
 }
 
@@ -156,7 +157,6 @@ fi
 
 if chartmuseum_update_available; then
   chartmuseum_update
-  if validate; then
-    set_execute
-  fi
+  validate
+  set_execute
 fi

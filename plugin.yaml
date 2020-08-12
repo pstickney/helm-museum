@@ -1,5 +1,5 @@
 name: "museum"
-version: "1.0.22"
+version: "1.0.23"
 usage: "test usage"
 description: "test description"
 useTunnel: true
